@@ -18,3 +18,8 @@ The vision of this project is to create a more democratic, secure, and decentral
 - **Automated Closing:** Add timers or block numbers to auto-close polls.
 - **Result Verification UI:** Front-end DApp to visualize results and audit votes.
 
+
+## Contract Details
+0x50db3e12E4CC885CE00aFE08a85f58BB2F08D31D
+![image](https://github.com/user-attachments/assets/07eb5ee5-94d4-4e14-9aab-673b3b663a0a)
+
