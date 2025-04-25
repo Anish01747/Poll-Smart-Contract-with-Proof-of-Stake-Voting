@@ -6,13 +6,15 @@ contract PollWithPoS {
     string public question;
     string[] public options;
     mapping(address => uint256) public stakes;
-    mapping(uint => uint256) public votes; // option index => total staked votes
+    mapping(uint => uint256) public votes;
+    mapping(address => bool) public voted;
     bool public votingOpen;
 
     event Voted(address indexed voter, uint indexed optionIndex, uint amount);
     event VotingClosed();
     event StakeWithdrawn(address indexed voter, uint amount);
     event PollUpdated(string newQuestion, string[] newOptions);
+    event PollReset();
 
     constructor() {
         owner = msg.sender;
@@ -39,6 +41,7 @@ contract PollWithPoS {
 
         stakes[msg.sender] += msg.value;
         votes[optionIndex] += msg.value;
+        voted[msg.sender] = true;
 
         emit Voted(msg.sender, optionIndex, msg.value);
     }
@@ -67,7 +70,7 @@ contract PollWithPoS {
         return results;
     }
 
-    function getLeadingOption() external view returns (string memory leadingOption, uint256 voteCount) {
+    function getLeadingOption() public view returns (string memory leadingOption, uint256 voteCount) {
         uint256 highest = 0;
         uint256 index = 0;
         for (uint i = 0; i < options.length; i++) {
@@ -94,5 +97,58 @@ contract PollWithPoS {
 
     function getOptions() external view returns (string[] memory) {
         return options;
+    }
+
+    // 🚀 New utility functions below
+
+    function getTotalStake() external view returns (uint256 totalStake) {
+        return address(this).balance;
+    }
+
+    function getUserVoteBalance(address user) external view returns (uint256) {
+        return stakes[user];
+    }
+
+    function hasVoted(address user) external view returns (bool) {
+        return voted[user];
+    }
+
+    function resetPoll(string memory newQuestion, string[] memory newOptions) external onlyOwner {
+        require(!votingOpen, "Close voting before resetting");
+
+        // Clear mappings
+        for (uint i = 0; i < options.length; i++) {
+            votes[i] = 0;
+        }
+
+        // Reset each participant's stake
+        // NOTE: This doesn't refund ETH – assume everyone withdrew.
+        // To improve: track all voters and reset their data.
+        question = newQuestion;
+        delete options;
+        votingOpen = true;
+
+        for (uint i = 0; i < newOptions.length; i++) {
+            options.push(newOptions[i]);
+        }
+
+        emit PollReset();
+        emit PollUpdated(newQuestion, newOptions);
+    }
+
+    function getPollSummary() external view returns (
+        string memory _question,
+        string[] memory _options,
+        uint256[] memory _votes,
+        string memory _leadingOption,
+        uint256 _leadingVotes
+    ) {
+        _question = question;
+        _options = options;
+        _votes = new uint256[](options.length);
+        for (uint i = 0; i < options.length; i++) {
+            _votes[i] = votes[i];
+        }
+        (_leadingOption, _leadingVotes) = getLeadingOption();
     }
 }
