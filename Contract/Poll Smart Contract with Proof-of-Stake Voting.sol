@@ -15,6 +15,8 @@ contract PollWithPoS {
     event StakeWithdrawn(address indexed voter, uint amount);
     event PollUpdated(string newQuestion, string[] newOptions);
     event PollReset();
+    event EmergencyClosed();
+    event EmergencyWithdrawal(uint256 amount);
 
     constructor() {
         owner = msg.sender;
@@ -99,7 +101,7 @@ contract PollWithPoS {
         return options;
     }
 
-    // 🚀 New utility functions below
+    
 
     function getTotalStake() external view returns (uint256 totalStake) {
         return address(this).balance;
@@ -116,14 +118,10 @@ contract PollWithPoS {
     function resetPoll(string memory newQuestion, string[] memory newOptions) external onlyOwner {
         require(!votingOpen, "Close voting before resetting");
 
-        // Clear mappings
         for (uint i = 0; i < options.length; i++) {
             votes[i] = 0;
         }
 
-        // Reset each participant's stake
-        // NOTE: This doesn't refund ETH – assume everyone withdrew.
-        // To improve: track all voters and reset their data.
         question = newQuestion;
         delete options;
         votingOpen = true;
@@ -151,4 +149,45 @@ contract PollWithPoS {
         }
         (_leadingOption, _leadingVotes) = getLeadingOption();
     }
+
+    
+
+    function getUserVoteDetails(address user) external view returns (uint256 stakeAmount, bool hasUserVoted) {
+        return (stakes[user], voted[user]);
+    }
+
+    function getPollStatus() external view returns (bool isVotingOpen) {
+        return votingOpen;
+    }
+
+    function getWinningMargin() external view returns (uint256 margin) {
+        uint256 highest = 0;
+        uint256 secondHighest = 0;
+        for (uint i = 0; i < options.length; i++) {
+            uint256 voteCount = votes[i];
+            if (voteCount > highest) {
+                secondHighest = highest;
+                highest = voteCount;
+            } else if (voteCount > secondHighest) {
+                secondHighest = voteCount;
+            }
+        }
+        margin = highest - secondHighest;
+    }
+
+    function emergencyCloseVoting() external onlyOwner votingActive {
+        votingOpen = false;
+        emit EmergencyClosed();
+    }
+
+    function emergencyWithdraw() external onlyOwner {
+        require(!votingOpen, "Voting must be closed before emergency withdraw");
+        uint256 contractBalance = address(this).balance;
+        require(contractBalance > 0, "No funds to withdraw");
+
+        payable(owner).transfer(contractBalance);
+
+        emit EmergencyWithdrawal(contractBalance);
+    }
 }
+
