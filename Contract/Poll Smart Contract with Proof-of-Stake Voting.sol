@@ -8,6 +8,7 @@ contract PollWithPoS {
     mapping(address => uint256) public stakes;
     mapping(uint => uint256) public votes;
     mapping(address => bool) public voted;
+    mapping(address => uint256) public userVoteOption; 
     bool public votingOpen;
 
     event Voted(address indexed voter, uint indexed optionIndex, uint amount);
@@ -44,6 +45,7 @@ contract PollWithPoS {
         stakes[msg.sender] += msg.value;
         votes[optionIndex] += msg.value;
         voted[msg.sender] = true;
+        userVoteOption[msg.sender] = optionIndex; 
 
         emit Voted(msg.sender, optionIndex, msg.value);
     }
@@ -101,8 +103,6 @@ contract PollWithPoS {
         return options;
     }
 
-    
-
     function getTotalStake() external view returns (uint256 totalStake) {
         return address(this).balance;
     }
@@ -150,8 +150,6 @@ contract PollWithPoS {
         (_leadingOption, _leadingVotes) = getLeadingOption();
     }
 
-    
-
     function getUserVoteDetails(address user) external view returns (uint256 stakeAmount, bool hasUserVoted) {
         return (stakes[user], voted[user]);
     }
@@ -189,5 +187,12 @@ contract PollWithPoS {
 
         emit EmergencyWithdrawal(contractBalance);
     }
-}
 
+    
+    function getUserSelectedOption(address user) external view returns (string memory option) {
+        require(voted[user], "User has not voted yet");
+        uint256 optionIndex = userVoteOption[user];
+        require(optionIndex < options.length, "Invalid option index recorded");
+        return options[optionIndex];
+    }
+}
